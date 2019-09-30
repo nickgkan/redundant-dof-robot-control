@@ -1,7 +1,4 @@
-'''
-Class Redundant8dofController controls the operation of a robotic arm
-in order to perform a fine-grained task.
-'''
+"""Class to control a robotic arm to perform a fine-grained task."""
 
 from __future__ import division
 
@@ -11,11 +8,13 @@ import numpy as np
 
 from src.criterion import SafetyCriterion
 
+
 class Redundant8dofController():
-    '''
-    A class to configure and simulate an 8-DOF robotic arm to perform
-    a fine-grained task: ride its body through an obstacle topology in
-    order to reach a given end point.
+    """
+    Configure and simulate an 8-DOF robotic arm.
+
+    The arm performs a fine-grained task: rides its body through
+    an obstacle topology in order to reach a given end point.
 
     Initialize an instance of this class (optionally) providing the
     following arguments:
@@ -32,22 +31,23 @@ class Redundant8dofController():
     effective region is the disk x^2 + y^2 <= 64. Both obstacles' and
     goal's coordinates should be selected inside this area. Obstacles
     are circles with a radius equal to 0.2.
-    '''
+    """
+
     def __init__(self, x_obs0=5, y_obs0=0.3, x_obs1=5, y_obs1=1.7):
+        """Initialize obstacles at given positions."""
         self.x_obs0 = x_obs0
         self.y_obs0 = y_obs0
         self.x_obs1 = x_obs1
         self.y_obs1 = y_obs1
         self.x_start = 5
         self.y_start = 1
-        self.dt = 0.001 #sampling period
+        self.dt = 0.001  # sampling period
 
     def simulate(self, x_goal, y_goal, T_f=1, kappa_c=80, kappa_p=10,
                  safety_dist=0.65, gif_name=None, gif_fps=10,
                  plot_arm=True, plot_fps=10):
-        '''
-        Simulate the robotic arm's task to reach the goal while
-        avoiding the obstacles.
+        """
+        Simulate the robotic arm's task.
 
         Inputs:
             - x_goal: float, the goal's x coordinate
@@ -76,7 +76,7 @@ class Redundant8dofController():
         Note that obstacle have a diameter of 0.4, thus the safety
         distance, s measured from the obstacle's center, must be
         greater than 0.2.
-        '''
+        """
         # Initialize parameters
         self.x_goal = x_goal
         self.y_goal = y_goal
@@ -101,8 +101,10 @@ class Redundant8dofController():
         self.fig, self.axs = plt.subplots()
         if self.plot_arm:
             self.fig.show()
-        self._joint_angles_on_time, self._x_effector_on_time, \
-        self._y_effector_on_time = zip(*[
+        (
+            self._joint_angles_on_time, self._x_effector_on_time,
+            self._y_effector_on_time
+        ) = zip(*[
             self._run_kinematics_and_criteria(t)
             for t, _ in enumerate(self.x_desired)
         ])
@@ -111,10 +113,8 @@ class Redundant8dofController():
         return self
 
     def _run_kinematics_and_criteria(self, timestamp):
-        '''
-        Perform one iteration of the kinematic model with respect to
-        the defined criteria for safety and return kinematic info for
-        the timestamp examined.
+        """
+        Perform one iteration of the kinematic model.
 
         Inputs:
             - timestamp: int, discrete time value (or current number
@@ -126,7 +126,7 @@ class Redundant8dofController():
                 position
             - y_effector: float, the computed y coordinate of effector's
                 position
-        '''
+        """
         # Forward kinematics
         jnts_x, jnts_y, djnts_x, djnts_y, jacobian, jacobian_psinv = \
             self.compute_joint_positions(np.cumsum(self.joint_angles))
@@ -149,9 +149,10 @@ class Redundant8dofController():
 
     def _subtask_criterion(self, jnts_x, jnts_y, djnts_x, djnts_y, jacobian,
                            jacobian_psinv):
-        '''
-        Act for 2nd subtask of a fine-grained robotic manipulation,
-        compute angle speed due to the control criterion.
+        """
+        Act for 2nd subtask of a fine-grained robotic manipulation.
+
+        Compute angle speed due to the control criterion.
 
         Inputs:
             - jnts_x: list 8 float numbers, the x coordinates of joints'
@@ -167,7 +168,7 @@ class Redundant8dofController():
                 the kinematic model
         Outputs:
             - The angle speed due to criterion evaluation
-        '''
+        """
         criterion = SafetyCriterion(
             self.x_obs0, self.y_obs0,
             self.x_obs1, self.y_obs1,
@@ -183,9 +184,10 @@ class Redundant8dofController():
         )
 
     def _subtask_trajectory(self, jacobian_psinv, timestamp):
-        '''
-        Act for 1st subtask of a fine-grained robotic manipulation,
-        compute angle speed due to the proclivity to follow the desired
+        """
+        Act for 1st subtask of a fine-grained robotic manipulation.
+
+        Compute angle speed due to the proclivity to follow the desired
         trajectory.
 
         Inputs:
@@ -195,34 +197,34 @@ class Redundant8dofController():
                 of iteration)
         Outputs:
             - The angle speed due to trajectory
-        '''
+        """
         v = np.array([self.vx_desired[timestamp], self.vy_desired[timestamp]])
         p = np.array([self.x_desired[timestamp], self.y_desired[timestamp]])
         p_true = np.array([self.x_effector, self.y_effector])
-        return np.matmul(jacobian_psinv, v + self.kappa_p*(p-p_true))
+        return np.matmul(jacobian_psinv, v + self.kappa_p * (p - p_true))
 
     def _compute_desired_trajectory(self):
-        '''
-        Given the goal coordinates and the desired time of total task,
-        compute the ideal trajectory (position and speed) to be
-        followed.
+        """
+        Compute the ideal trajectory (position-speed) to be followed.
 
         Polynomial space equation for velocity-acceleration control is
         applied.
-        '''
-        t = np.arange(0, self.T_f+self.dt, self.dt)
-        slope = (self.y_goal-self.y_start) / (self.x_goal-self.x_start)
-        x_desired = self.x_start \
-                    + (3 * (self.x_goal-self.x_start) / (self.T_f**2)) * t**2\
-                    - (2 * (self.x_goal-self.x_start)/(self.T_f**3)) * t**3
-        y_desired = self.y_start + slope*(x_desired-self.x_start)
-        vx_desired = (6 * (self.x_goal-self.x_start)/(self.T_f**2)) * t \
-                     - (6* (self.x_goal-self.x_start)/(self.T_f**3)) * t**2
+        """
+        t = np.arange(0, self.T_f + self.dt, self.dt)
+        slope = (self.y_goal - self.y_start) / (self.x_goal - self.x_start)
+        x_desired = (
+            self.x_start
+            + (3 * (self.x_goal - self.x_start) / (self.T_f**2)) * t**2
+            - (2 * (self.x_goal - self.x_start) / (self.T_f**3)) * t**3)
+        y_desired = self.y_start + slope * (x_desired - self.x_start)
+        vx_desired = (
+            (6 * (self.x_goal - self.x_start) / (self.T_f**2)) * t
+            - (6 * (self.x_goal - self.x_start) / (self.T_f**3)) * t**2)
         vy_desired = slope * vx_desired
         return x_desired, y_desired, vx_desired, vy_desired
 
     def _plot_configuration(self, jnts_x, jnts_y):
-        '''
+        """
         Plot current configuration.
 
         Inputs:
@@ -232,7 +234,7 @@ class Redundant8dofController():
                 positions
         Returns:
             - plot image: array, the plotted image in numpy array form
-        '''
+        """
         self.axs.cla()
         self.axs.axis([-2, 8, -2, 5])
 
@@ -273,9 +275,8 @@ class Redundant8dofController():
 
     @staticmethod
     def compute_joint_positions(angle_cumsum):
-        '''
-        Given the cummulative sum of joint angles, compute joint
-        positions.
+        """
+        Compute joint (x, y) given the cummulative sum of joint angles.
 
         Inputs:
             - angle_cumsum: array (8,), the cummulative sum of angles
@@ -288,7 +289,7 @@ class Redundant8dofController():
                  derivatives of angles' positions
             - jacobian: array (2, 8), the jacobian matrix
             - jacobian_psinv: array (8, 2), pseudo-inverse of jacobian
-        '''
+        """
         (s1, s12, s123, s1234, s12345, s123456, s1234567, s12345678) = \
             np.sin(angle_cumsum).tolist()
         (c1, c12, c123, c1234, c12345, c123456, c1234567, c12345678) = \
@@ -323,40 +324,38 @@ class Redundant8dofController():
             -s1, c12, -s123, c1234, c12345, c123456, s1234567, c12345678
         ]).tolist()
         djnts_x = [
-            np.array(djnts_x[:jnt+1][::-1] + [0 for _ in range(7 - jnt)])
+            np.array(djnts_x[:jnt + 1][::-1] + [0 for _ in range(7 - jnt)])
             for jnt, _ in enumerate(djnts_x)
         ]
         djnts_y = [
-            np.array(djnts_y[:jnt+1][::-1] + [0 for _ in range(7 - jnt)])
+            np.array(djnts_y[:jnt + 1][::-1] + [0 for _ in range(7 - jnt)])
             for jnt, _ in enumerate(djnts_y)
         ]
         return jnts_x, jnts_y, djnts_x, djnts_y, jacobian, jacobian_psinv
 
     def effector_coords_on_time(self):
-        '''
-        Returns a list of 2 lists, the x and y coordinates of the
-        robot's effector.
-        '''
+        """Return x and y coordinates of the robot's effector."""
         return [self._x_effector_on_time, self._y_effector_on_time]
 
     @property
     def config_plots(self):
-        '''Returns the list of configuration plots'''
+        """Return the list of configuration plots."""
         return self._config_plots
 
     @property
     def joint_angles_on_time(self):
-        '''Return a list of arrays (8,) containing the angles
-        of the 8 joints as changing with time.'''
-        return self._joint_angles_on_time
+        """Return the angles of the 8 joints as changing with time."""
+        return self._joint_angles_on_time  # list of arrays (8,)
 
 if __name__ == "__main__":
-    Redundant8dofController().simulate(7, 3, gif_name='robot_arm.gif', plot_arm=True)
+    Redundant8dofController().simulate(
+        7, 3, gif_name='robot_arm.gif', plot_arm=True)
     images = [
         image
-        for x_goal, y_goal in [(7, 3), (5.5, 1.2), (6, 2)]
+        for x_goal, y_goal in [(7, 3), (5.5, 1.2), (6, 2), (3, 4)]
         for image in
-        Redundant8dofController().simulate(x_goal, y_goal, plot_arm=True, kappa_p=3, kappa_c=246).config_plots
+        Redundant8dofController().simulate(
+            x_goal, y_goal, plot_arm=True, kappa_p=3, kappa_c=246).config_plots
     ]
     mimsave(
         'robot_sims.gif',

@@ -12,7 +12,9 @@ Drive a robotic arm towards a goal avoiding any obstacles.
 ## Arm
 The examined configuration with Denavit-Hartenberg method axes denoted:
 
-![dh](dh.png)
+<p align="center">
+  <img src="https://github.com/nickgkan/redundant-dof-robot-control/blob/master/dh.png?raw=true"/>
+</p>
 
 ## Solution
 We solve two separate subtasks: One forcing the effector to move along the desired trajectory and another one forcing minimum distance from an obstacle to be greater than a given safety distance.
@@ -21,4 +23,6 @@ We solve two separate subtasks: One forcing the effector to move along the desir
 Run main.py. This will trigger simulation and create the gifs seen in https://nickgkan.github.io/
 
 ### Intermediate Steps Example
-![ex](ex.png)
+<p align="center">
+  <img src="https://github.com/nickgkan/redundant-dof-robot-control/blob/master/ex.png?raw=true"/>
+</p>
